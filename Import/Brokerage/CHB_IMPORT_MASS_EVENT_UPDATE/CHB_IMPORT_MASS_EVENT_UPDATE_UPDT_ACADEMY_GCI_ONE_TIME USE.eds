@@ -1,0 +1,118 @@
+//32E025893E2932D48B2F7B75BE45A5F767
+//On 8/1/2016, iah-jessieho signed this file.
+Program CHB_IMPORT_MASS_EVENT_UPDATE_UPDT_ACADEMY_1_Time_Use;
+
+//**************************************************************************************
+// SCRIPT: 		CHB_IMPORT_MASS_EVENT_UPDATE_UPDT_ACADEMY_1_Time_Use
+// SYSTEM: 		IMPORT
+// DESC:		Updates Revenue and Bill to GCI and posts a DLV event with user specific date/time and remark.
+// LIMITS: 		N/A
+// Script ID: 	
+// AUTHOR			DATE		STATUS
+// ------------ 	--------    ------------------------------------------------------------
+// Jessie Holcomb	08/01/16	Version 1.0
+//
+//**************************************************************************************
+
+// ==============================================================================================
+// ------------------------------  M A I N    S C R I P T ---------------------------------------
+// ==============================================================================================
+
+Type
+
+    logInput = record
+             logFile       : string;
+end;
+
+var
+	entercomment  : string;
+	eventdate	  : string;
+	eventtime	  : string;
+	i 			  : integer;
+	logInput      : tTextFile;
+	logLastRow 	  : integer;
+	logList       : Array[0..15000] of logInput;
+	xLog          : integer;
+	
+begin
+
+// =================  Verify Screen and File is Blank ======================
+if (formname <> 'sls00sMain') or (trim(getvalue('invoice_No')) <> '') then
+begin
+	showmessage('Please replay this script on a blank SHIPLOG screen');
+	exit;
+end;
+
+// =============Read in file numbers to array===================
+
+ASSIGNFILE(logInput, 'F:\Scripting\Import\CHB_IMPORT_MASS_EVENT_UPDATE\Input\input_Academy_GCI and DLV_Update.csv');
+
+Reset(logInput);
+xLog := -1;
+REPEAT
+	   xLog := xLog+1;
+	   logList[xLog].logFile := TRIM(READ(logInput));
+UNTIL EOF(logInput);
+ logLastRow := xLog;
+ Close(logInput);
+
+// showmessage(logList[xLog].logFile);
+ 
+// ================ Indicate which event to void ==============
+
+eventdate := 'x';
+if inputquery('Update event', 'Enter the DLV event DATE.', eventdate) = false then exit;
+eventdate := uppercase(trim(eventdate));
+
+eventtime := 'x';
+if inputquery('Update event', 'Enter the DLV event TIME', eventtime) = false then exit;
+eventtime := uppercase(trim(eventtime));
+
+if inputquery('Update event', 'Enter the text of any comment you would like on the DLV event.  The same comment will be applied to all events.'  
+							  + chr(10) + chr(10) +	'Leave blank if you do not want to enter a comment.',
+	entercomment) = false then exit;
+entercomment := uppercase(trim(entercomment));
+
+doaction('PF6'); // Press SHIPMT HIST button
+
+// ==============SHPMNT HIST screen=============================
+
+	//Check for Shipment History screen
+	if (formname <> 'slseShip_Head') then
+	begin
+		showmessage('Please replay this script on the SHIPLOG screen');
+		exit;
+	end;
+
+	//Bring up file
+	for xLog := 0 to logLastRow Do 
+	Begin
+		setValue('invoice_No', logList[xLog].logFile);
+		doAction('PF2');
+
+		//Enter the DLV event
+		setvalue('event_Code1', 'DLV');
+		setvalue('post_Date1', eventdate);
+		setvalue('time_Text1', eventtime);
+		setvalue('event_Desc1', entercomment);
+
+		doaction('PF1'); //Update
+		doAction('PF8'); //Return to SHIPLOG
+
+		if (formname <> 'slseOOsMain') then
+		begin
+			showmessage('Please replay this script on the SHIPLOG screen');
+			exit;
+		end;
+		setvalue('client_No_Rev', 'G1846976');
+		setvalue('client_No', 'G1846976');
+
+		doaction('PF1'); //Update
+		doaction('PF6'); // Return to SHIPMT HIST button
+		
+	end; //End FOR loop
+
+// ==============Clear screen=============================
+doAction('PF3'); //Clear screen
+	
+end.

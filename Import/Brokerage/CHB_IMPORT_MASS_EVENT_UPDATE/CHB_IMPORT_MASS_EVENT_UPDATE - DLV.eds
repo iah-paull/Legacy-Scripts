@@ -1,0 +1,92 @@
+//32364BBD7EFFB6E26913740FE2B5F5B321
+//On 10/12/2017, iah-paull signed this file.
+Program CHB_IMPORT_MASS_EVENT_UPDATE;
+
+//**************************************************************************************
+// SCRIPT: 		CHB_IMPORT_MASS_EVENT_UPDATE
+// SYSTEM: 		IMPORT
+// DESC:		Enters a user-entered event on a list of input files.
+//				Run script from SHIPLOG, reads in list of files from input file.
+//				Prompts user for event, date, time, and comment.
+// LIMITS: 		N/A
+// Script ID: 	
+// AUTHOR		DATE		STATUS
+// ------------ ----------- ------------------------------------------------------------
+// Julia Holz	10/25/12	Version 1.0 - Updates user-input event
+//
+//**************************************************************************************
+
+// ==============================================================================================
+// ------------------------------  M A I N    S C R I P T ---------------------------------------
+// ==============================================================================================
+
+Type
+
+    logInput = record
+             logFile       : string;
+end;
+
+var
+	enterevent    : string;
+	entercomment  : string;
+	eventdate	  : string;
+	eventtime	  : string;
+	i 			  : integer;
+	logInput      : tTextFile;
+	logLastRow 	  : integer;
+	logList       : Array[0..15000] of logInput;
+	xLog          : integer;
+	str				: string;
+	
+	const testing = false;
+	
+begin
+
+// =================  Verify Screen and File is Blank ======================
+if (formname <> 'sls00sMain') or (trim(getvalue('invoice_No')) <> '') then
+begin
+	showmessage('Please replay this script on a blank SHIPLOG screen');
+	exit;
+end;
+
+// =============Read in file numbers to array===================
+
+ASSIGNFILE(logInput, 'F:\Scripting\Import\CHB_IMPORT_MASS_EVENT_UPDATE\Input\DLVinput.csv');
+
+Reset(logInput);
+xLog := -1;
+REPEAT
+	   xLog := xLog+1;
+	   logList[xLog].logFile := TRIM(READ(logInput));
+UNTIL EOF(logInput);
+ logLastRow := xLog;
+ Close(logInput);
+
+//Check for Shipment History screen
+if (formname <> 'sls00sMain') then
+begin
+	showmessage('Please replay this script on the SHIPLOG screen');
+	exit;
+end;
+
+//Bring up file
+
+for xLog := 0 to logLastRow Do Begin
+	setValue('invoice_No', logList[xLog].logFile);
+	doAction('PF2');
+
+//Enter the event
+
+setvalue('my_We_Deliver', 'N');
+setvalue('client_No_Dsvcpro', '        ');
+if testing = true then if inputquery('Test','testing prompt' + chr(13) + 'Click cancel to stop the script.' + formname,str) = false then exit;
+doaction('PF1'); //Update
+if testing = true then if inputquery('Test','testing prompt' + chr(13) + 'Click cancel to stop the script.' + formname,str) = false then exit;
+	
+end; //End FOR loop
+
+// ==============Clear screen=============================
+//doAction('PF8'); //Return to SHIPLOG
+doAction('PF3'); //Clear screen
+	
+end.
